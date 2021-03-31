@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <title>3D Viewer</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="three.js"></script>
+    <script src="Detector.js"></script>
+    <script src="OrbitControls.js"></script>
+    <script src="OBJLoader.js"></script>
+    <script src="MTLLoader.js"></script>
+
+    <style>
+        body {
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            background-image: url("assets/background.jpeg");
+            background: hsl(0, 0%, 10%);
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        p {
+            margin: 0;
+            padding: 0;
+        }
+
+        .left,
+        .right {
+            position: absolute;
+            color: #fff;
+            font-family: Geneva, sans-serif;
+        }
+
+        .left {
+            bottom: 1em;
+            left: 1em;
+            text-align: left;
+        }
+
+        .right {
+            margin: 0;
+            left: 50%;
+            margin-right: -50%;
+            transform: translate(-50%, -50%);
+
+        }
+
+        a {
+            color: #f58231;
+        }
+        canvas {
+    width: 15%;
+    height: 35px;
+    display: block;
+}
+
+.annotation {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    margin-left: 15px;
+    margin-top: 15px;
+    padding: 1em;
+    width: 200px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: .5em;
+    font-size: 12px;
+    line-height: 1.2;
+    transition: opacity .5s;
+    & {
+        content: '1';
+        position: absolute;
+        top: -30px;
+        left: -30px;
+        width: 30px;
+        height: 30px;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        font-size: 16px;
+        line-height: 30px;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.8);
+    }
+}
+
+#number {
+    position: absolute;
+    z-index: -1;
+}
+    </style>
+
+</head>
+<body>
+
+    <div class="left">
+        <p><input id="nextWeapon" type="button" value="next weapon" style="border: none; color:black; font-size:16px;  ">
+        <p>Sterling<p>
+        <p><a href="www.EC-e.nl" target="_top">EC-E</a></p>
+    </div>
+
+    <a class="right" href="www.mindef.nl" target="_top">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Logo_ministerie_van_defensie.svg/1200px-Logo_ministerie_van_defensie.svg.png" height="75">
+    </a>
+    <div class="annotation">
+    </p><strong>Cube</strong></p>
+    <p>In geometry, a cube is a three-dimensional solid object bounded by six square faces, facets or sides, with three meeting at each vertex.</p>
+    <canvas id="number" width="64" height="64"></canvas>
+    <script>
+
+        if (!Detector.webgl) {
+            Detector.addGetWebGLMessage();
+        }
+
+        var container;
+        var currentGun;
+
+        var camera, controls, scene, renderer;
+        var lighting, ambient, keyLight, fillLight, backLight;
+        var sprite, mesh, spriteBehindObject;
+        const annotation = document.querySelector(".annotation");
+
+        init();
+        animate();
+        const canvas = document.getElementById("number");
+        const ctx = canvas.getContext("2d");
+        const x = 32;
+        const y = 32;
+        const radius = 30;
+        const startAngle = 0;
+        const endAngle = Math.PI * 2;
+
+        ctx.fillStyle = "rgb(0, 0, 0)";
+        ctx.beginPath();
+        ctx.arc(x, y, radius, startAngle, endAngle);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgb(255, 255, 255)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, startAngle, endAngle);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgb(255, 255, 255)";
+        ctx.font = "32px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("1", x, y);
+
+        function init() {
+
+            container = document.createElement('div');
+            document.body.appendChild(container);
+
+
+            /* Camera */
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.z = 150;
+
+            /* Scene */
+            currentGun = 1;
+            scene = new THREE.Scene();
+            lighting = false;
+
+            ambient = new THREE.AmbientLight(0xffffff, 1.0);
+            scene.add(ambient);
+
+            keyLight = new THREE.DirectionalLight(new THREE.Color('hsl(0, 40%, 92%)'), 1.0);
+            keyLight.position.set(-100, 0, 100);
+
+            fillLight = new THREE.DirectionalLight(new THREE.Color('hsl(211, 87%, 54%)'), 0.75);
+            fillLight.position.set(100, 0, 100);
+
+            backLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            backLight.position.set(-100, 50, -100).normalize();
+
+            /* Model */
+
+            var mtlLoader = new THREE.MTLLoader();
+            mtlLoader.setBaseUrl('assets/');
+            mtlLoader.setPath('assets/');
+            mtlLoader.load('sterling.mtl', function (materials) {
+
+                materials.preload();
+
+          /*      materials.materials.default.map.magFilter = THREE.NearestFilter;
+                materials.materials.default.map.minFilter = THREE.LinearFilter;
+*/
+                var objLoader = new THREE.OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('assets/');
+                objLoader.load('sterling.obj', function (object) {
+                    object.name = 'Sterling';
+                    scene.add(object);
+                });
+
+            });
+            var mtlLoader2 = new THREE.MTLLoader();
+            mtlLoader2.setBaseUrl('assets/');
+            mtlLoader2.setPath('assets/');
+            mtlLoader2.load('colt.mtl', function (materials2) {
+
+                materials2.preload();
+            var objLoader2 = new THREE.OBJLoader();
+            objLoader2.setMaterials(materials2);
+            objLoader2.setPath('assets/');
+            objLoader2.load('colt.obj', function (object2) {
+                object2.name = 'colt';
+                object2.scale.set(0,0,0);
+                scene.add(object2);
+            });
+            });
+
+            const cubeGeometry = new THREE.BoxGeometry(30, 30, 30);
+
+            mesh = new THREE.Mesh(
+                cubeGeometry,
+                new THREE.MeshPhongMaterial({
+                    color: 0x156289,
+                    emissive: 0x072534,
+                    side: THREE.DoubleSide,
+                    shading: THREE.FlatShading
+                })
+            );
+            //scene.add(mesh);
+
+            const numberTexture = new THREE.CanvasTexture(
+                document.querySelector("#number")
+            );
+
+            const spriteMaterial = new THREE.SpriteMaterial({
+                map: numberTexture,
+                alphaTest: 0.5,
+                transparent: true,
+                depthTest: false,
+                depthWrite: false
+            });
+
+            sprite = new THREE.Sprite(spriteMaterial);
+            sprite.position.set(20, 20, 1);
+            sprite.scale.set(40, 40, 40);
+
+            scene.add(sprite);
+
+            /* Renderer */
+            const vector = new THREE.Vector3(20, 20, 1);
+            const loader = new THREE.TextureLoader();
+            const canvas = document.getElementById('number');
+
+            vector.project(camera);
+            vector.x = Math.round((0.5 + vector.x / 2) * (canvas.width / window.devicePixelRatio));
+            vector.y = Math.round((0.5 - vector.y / 2) * (canvas.height / window.devicePixelRatio));
+            const annotation = document.querySelector('.annotation');
+            annotation.style.top = `${vector.y}px`;
+            annotation.style.left = `${vector.x}px`;
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(new THREE.Color("hsl(0, 0%, 50%)"));
+            loader.load('assets/background.jpeg', function(texture){
+              scene.background = texture;
+            });
+            container.appendChild(renderer.domElement);
+
+            /* Controls */
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.enableZoom = true;
+
+            /* Events */
+
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('keydown', onKeyboardEvent, false);
+
+        }
+
+        function onWindowResize() {
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+        }
+
+        ambient.intensity = 0.25;
+        scene.add(keyLight);
+        scene.add(fillLight);
+        scene.add(backLight);
+
+        var el = document.getElementById("nextWeapon");
+        if(el.addEventListener)
+          el.addEventListener("click", swapWeapons, false);
+          else if (el.attachEvent)
+          el.attachEvent('onclick', swapWeapons);
+
+        function swapWeapons(){
+          if(currentGun == 1){
+            delete3DOBJ('Sterling');
+            add3DOBJ('colt');
+            currentGun = 2;
+          }
+          else if(currentGun == 2){
+            delete3DOBJ('colt');
+            add3DOBJ('Sterling');
+            currentGun = 1;
+          }
+
+        }
+
+        function delete3DOBJ(objName){
+          var selectedObject = scene.getObjectByName(objName);
+          selectedObject.scale.set(0, 0, 0);
+        //  scene.remove( selectedObject );
+
+        }
+
+        function add3DOBJ(objName){
+          var selectedObject = scene.getObjectByName(objName);
+          if(objName == 'Sterling'){
+            selectedObject.scale.set(1, 1, 1);
+          }
+          else{
+            selectedObject.scale.set(6, 6, 6);
+          }
+
+        }
+
+        function updateAnnotationOpacity() {
+            const meshDistance = camera.position.distanceTo(mesh.position);
+            const spriteDistance = camera.position.distanceTo(sprite.position);
+            spriteBehindObject = spriteDistance > meshDistance;
+            sprite.material.opacity = spriteBehindObject ? 0.25 : 1;
+
+            // Do you want a number that changes size according to its position?
+            // Comment out the following line and the `::before` pseudo-element.
+          //  sprite.material.opacity = 0;
+        }
+
+        function updateScreenPosition() {
+          const vector = new THREE.Vector3(20, 20, 5);
+          const canvas = renderer.domElement;
+
+          vector.project(camera);
+
+          vector.x = Math.round((0.5 + vector.x / 2) * (canvas.width / window.devicePixelRatio));
+          vector.y = Math.round((0.5 - vector.y / 2) * (canvas.height / window.devicePixelRatio));
+
+          annotation.style.top = `${vector.y}px`;
+          annotation.style.left = `${vector.x}px`;
+          annotation.style.opacity = spriteBehindObject ? 0.25 : 1;
+      }
+
+        function onKeyboardEvent(e) {
+
+            if (e.code === 'KeyL') {
+
+                lighting = !lighting;
+
+                if (lighting) {
+
+                    ambient.intensity = 0.25;
+                    scene.add(keyLight);
+                    scene.add(fillLight);
+                    scene.add(backLight);
+
+                } else {
+
+                    ambient.intensity = 1.0;
+                    scene.remove(keyLight);
+                    scene.remove(fillLight);
+                    scene.remove(backLight);
+
+                }
+
+            }
+
+        }
+
+        function animate() {
+
+            requestAnimationFrame(animate);
+
+            controls.update();
+
+            render();
+
+        }
+
+        function render() {
+
+            renderer.render(scene, camera);
+            updateAnnotationOpacity();
+            updateScreenPosition();
+        }
+
+    </script>
+
+</body>
+</html>
